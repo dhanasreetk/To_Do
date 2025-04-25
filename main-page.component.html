@@ -1,0 +1,468 @@
+<div class="loading-overlay" *ngIf="isLoading" aria-live="polite">
+  <div class="spinner"></div>
+  <span class="visually-hidden">Loading...</span>
+</div>
+
+<div class="login-container" [ngClass]="{'dark-mode': isDarkMode}" *ngIf="!isLoggedIn">
+  <div class="login-form">
+    <h2>{{ signupMode ? 'Sign Up' : 'Login' }}</h2>
+    <form (ngSubmit)="signupMode ? signup() : login()" novalidate>
+      <div class="form-group">
+        <label for="username">Username</label>
+        <input type="text" id="username" [(ngModel)]="username" name="username" required 
+               placeholder="Enter username" aria-required="true">
+      </div>
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input type="password" id="password" [(ngModel)]="password" name="password" required 
+               placeholder="Enter password" aria-required="true">
+      </div>
+      <div class="form-group" *ngIf="signupMode">
+        <label for="email">Email</label>
+        <input type="email" id="email" [(ngModel)]="email" name="email" required 
+               placeholder="Enter email" aria-required="true">
+      </div>
+      <div class="form-group" *ngIf="signupMode">
+        <label for="fullName">Full Name</label>
+        <input type="text" id="fullName" [(ngModel)]="fullName" name="fullName" required 
+               placeholder="Enter full name" aria-required="true">
+      </div>
+      <button type="submit" class="login-btn" [disabled]="isLoading">
+        {{ signupMode ? 'Sign Up' : 'Login' }}
+        <i class="fas fa-spinner fa-spin" *ngIf="isLoading" aria-hidden="true"></i>
+        <span class="visually-hidden" *ngIf="isLoading">Processing...</span>
+      </button>
+      <p *ngIf="errorMessage" class="error" role="alert">{{ errorMessage }}</p>
+      <p *ngIf="successMessage" class="success" role="status">{{ successMessage }}</p>
+      <button type="button" class="toggle-mode-btn" (click)="signupMode = !signupMode">
+        {{ signupMode ? 'Switch to Login' : 'Need an account? Sign Up' }}
+      </button>
+    </form>
+  </div>
+</div>
+
+<div *ngIf="isLoggedIn" class="main-content" [ngClass]="{'dark-mode': isDarkMode}">
+  <nav class="navbar">
+    <div class="nav-left">
+      <button class="menu-toggle" (click)="toggleSidePanel()" aria-label="Toggle side menu" 
+              [attr.aria-expanded]="isSidePanelOpen">
+        <i class="fas fa-bars"></i>
+      </button>
+      <div class="logo">To-Do App</div>
+    </div>
+    <div class="nav-items">
+      <button class="dark-mode-toggle" (click)="toggleDarkMode()" 
+              aria-label="Toggle dark mode" [attr.aria-pressed]="isDarkMode">
+        <i class="icon" [ngClass]="isDarkMode ? 'fas fa-sun' : 'fas fa-moon'"></i>
+        <span>{{ isDarkMode ? 'Light Mode' : 'Dark Mode' }}</span>
+      </button>
+      <button class="user-btn logout-btn" (click)="confirmLogout()" aria-label="Logout">
+        <i class="fas fa-sign-out-alt"></i> Logout
+      </button>
+    </div>
+  </nav>
+
+  <div class="side-panel" [ngClass]="{'open': isSidePanelOpen}" [@popper] 
+       role="complementary" [attr.aria-hidden]="!isSidePanelOpen">
+    <div class="side-panel-header">
+      <h2>Menu</h2>
+      <button class="close-btn" (click)="toggleSidePanel()" aria-label="Close side panel">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    <ul class="side-panel-items">
+      <li><a href="#" (click)="showAllTasks(); $event.preventDefault()">All Tasks</a></li>
+      <li><a href="#" (click)="toggleProfile(); $event.preventDefault()">Profile</a></li>
+      <li><a href="#" (click)="toggleReport(); $event.preventDefault()">Task Report</a></li>
+    </ul>
+    <div class="calendar-container" *ngIf="showCalendar" [@calendarFade] role="dialog" 
+         aria-label="Calendar">
+      <div class="calendar-header">
+        <button (click)="changeMonth(-1)" aria-label="Previous month">
+          <i class="fas fa-chevron-left"></i>
+        </button>
+        <h3>{{ calendarMonth | date:'MMMM yyyy' }}</h3>
+        <button (click)="changeMonth(1)" aria-label="Next month">
+          <i class="fas fa-chevron-right"></i>
+        </button>
+      </div>
+      <div class="calendar-grid">
+        <div class="day-name" *ngFor="let day of ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']">
+          {{ day }}
+        </div>
+        <div *ngFor="let day of calendarDays" class="calendar-day"
+             [ngClass]="{'today': day.date.toDateString() === today.toDateString(), 
+                        'selected': selectedDate && day.date.toDateString() === selectedDate.toDateString()}"
+             (click)="selectDate(day.date)"
+             role="button"
+             [attr.aria-label]="'Select ' + (day.date | date:'longDate') + ' with ' + day.tasks.length + ' tasks'"
+             [attr.aria-pressed]="selectedDate && day.date.toDateString() === selectedDate.toDateString()">
+          <span>{{ day.date.getDate() }}</span>
+          <div class="task-indicators">
+            <span *ngFor="let task of day.tasks" class="task-dot"
+                  [ngClass]="{'high': task.priority === 'High', 
+                             'medium': task.priority === 'Medium', 
+                             'low': task.priority === 'Low'}"
+                  [attr.aria-label]="task.priority + ' priority task'"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+ 
+  <div class="profile-panel" [ngClass]="{'open': showProfile}" [@popper] 
+       role="dialog" [attr.aria-hidden]="!showProfile" aria-label="User Profile">
+    <div class="profile-header">
+      <h2>Profile</h2>
+      <button class="close-btn" (click)="toggleProfile()" aria-label="Close profile panel">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    <div class="profile-content">
+      <div class="profile-card">
+        <div class="profile-avatar">
+          <div class="avatar" *ngIf="!userProfile.profilePhoto" [ngStyle]="{'background-color': getAvatarColor()}">
+            {{ userProfile.username.charAt(0).toUpperCase() }}
+          </div>
+          <img *ngIf="userProfile.profilePhoto" [src]="userProfile.profilePhoto" alt="Profile Photo" class="avatar-img">
+          <input type="file" id="profilePhoto" (change)="uploadProfilePhoto($event)" accept="image/*" class="photo-upload">
+          <label for="profilePhoto" class="upload-btn"><i class="fas fa-camera"></i> Change Photo</label>
+        </div>
+        <div class="profile-details">
+          <div class="form-group">
+            <label for="profileUsername">Username</label>
+            <input type="text" id="profileUsername" [(ngModel)]="userProfile.username" name="profileUsername" required>
+          </div>
+          <div class="form-group">
+            <label for="profileEmail">Email</label>
+            <input type="email" id="profileEmail" [(ngModel)]="userProfile.email" name="profileEmail" required>
+          </div>
+          <div class="form-group">
+            <label for="profileFullName">Full Name</label>
+            <input type="text" id="profileFullName" [(ngModel)]="userProfile.fullName" name="profileFullName" required>
+          </div>
+        </div>
+        <div class="profile-stats">
+          <h3>Stats</h3>
+          <div class="stats-grid">
+            <div class="stat-item">
+              <span class="stat-label">Total Tasks</span>
+              <span class="stat-value">{{ taskStats.total }}</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">Active</span>
+              <span class="stat-value">{{ activeTasksCount }}</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">Completed</span>
+              <span class="stat-value">{{ completedTasksCount }}</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">Points</span>
+              <span class="stat-value">{{ userProfile.points }}</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">Level</span>
+              <span class="stat-value">{{ userProfile.level }}</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">Badges</span>
+              <span class="stat-value">{{ userProfile.badges.length }}</span>
+            </div>
+          </div>
+          <div *ngIf="userProfile.badges.length > 0" class="badges-section">
+            <h4>Your Badges</h4>
+            <div class="badge-list">
+              <span *ngFor="let badge of userProfile.badges" class="badge" [@badgePop]>{{ badge }}</span>
+            </div>
+          </div>
+        </div>
+        <button class="save-btn" (click)="updateProfile()" [disabled]="isLoading">
+          Save Changes
+          <i class="fas fa-spinner fa-spin" *ngIf="isLoading" aria-hidden="true"></i>
+          <span class="visually-hidden" *ngIf="isLoading">Saving...</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="report-panel" [ngClass]="{'open': showReport}" [@popper] 
+       role="dialog" [attr.aria-hidden]="!showReport" aria-label="Task Report">
+    <div class="report-header">
+      <h2>Task Report</h2>
+      <button class="close-btn" (click)="toggleReport()" aria-label="Close report panel">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    <div class="report-content">
+      <pre>{{ taskReport }}</pre>
+      <div class="report-actions">
+        <button (click)="exportReport()" [disabled]="isLoading" aria-label="Export report as text file">
+          Export as Text
+          <i class="fas fa-download" aria-hidden="true"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+
+
+  <div class="container" [ngClass]="{'shifted': isSidePanelOpen || showProfile || showReport}">
+    <div class="hero-content">
+      <div class="hero-left">
+        <h1>{{ welcomeMessage }}</h1>
+        <p>Level {{ userProfile.level }} | {{ userProfile.points }} Points</p>
+        <p>Organize Your Day 🚀</p>
+        <div class="hero-image">
+          <img src="/assets/images/To do list-pana.png" alt="To-Do List Illustration">
+        </div>
+      </div>
+
+      <div class="hero-right">
+        <div class="task-section">
+          <div class="task-controls">
+            <div class="filter-buttons">
+              <button class="today-button" [ngClass]="{'active': filter === 'today'}" 
+                      (click)="setFilter('today')"
+                      [attr.aria-label]="'Show today\'s tasks (' + filteredTasks.length + ')'">
+                {{ selectedDate ? (selectedDate | date:'mediumDate') : 'Today' }} ({{ filteredTasks.length }})
+              </button>
+              <button [ngClass]="{'active': filter === 'active'}" 
+                      (click)="setFilter('active')"
+                      [attr.aria-label]="'Show active tasks (' + activeTasksCount + ')'">
+                Active ({{ activeTasksCount }})
+              </button>
+              <button [ngClass]="{'active': filter === 'completed'}" 
+                      (click)="setFilter('completed')"
+                      [attr.aria-label]="'Show completed tasks (' + completedTasksCount + ')'">
+                Completed ({{ completedTasksCount }})
+              </button>
+            </div>
+            <div class="search-container" [@fadeInOut]>
+              <input 
+                type="text" 
+                placeholder="Search tasks..." 
+                [(ngModel)]="searchQuery" 
+                (ngModelChange)="onSearchChange($event)"
+                aria-label="Search tasks"
+              >
+              <button *ngIf="searchQuery" (click)="clearSearch()" aria-label="Clear search">
+                <i class="fas fa-times"></i>
+              </button>
+            </div>
+            <div class="sort-controls" [@fadeInOut]>
+              <label for="sortBy">Sort by:</label>
+              <select id="sortBy" [(ngModel)]="sortBy" (ngModelChange)="setSortBy($event)" aria-label="Sort by">
+                <option value="dueDate">Due Date</option>
+                <option value="priority">Priority</option>
+                <option value="text">Title</option>
+                <option value="createdAt">Created Date</option>
+              </select>
+              <button (click)="setSortBy(sortBy)" [attr.aria-label]="'Sort ' + (sortDirection === 'asc' ? 'ascending' : 'descending')">
+                <i class="fas" [ngClass]="sortDirection === 'asc' ? 'fa-arrow-up' : 'fa-arrow-down'"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="progress-container" *ngIf="showProgressBar" [@fadeInOut]>
+            <div class="progress-label">
+              Completion Progress: {{ completionProgress }}%
+            </div>
+            <div class="progress-bar">
+              <div class="progress-fill" [style.width]="completionProgress + '%'" 
+                   [@badgePop]="completionProgress > 0 ? 'enter' : ''"></div>
+            </div>
+          </div>
+
+          <div class="task-input" [@fadeInOut] *ngIf="showTaskInput && !isEditing">
+            <form (ngSubmit)="addTask()" novalidate>
+              <div class="form-group">
+                <label for="newTaskText">Task Description</label>
+                <input type="text" id="newTaskText" [(ngModel)]="newTask.text" name="newTaskText" 
+                       placeholder="Add a new task..." required aria-required="true">
+              </div>
+              <div class="datetime-group">
+                <div class="form-group">
+                  <label for="newTaskDueDate">Due Date</label>
+                  <input type="date" id="newTaskDueDate" [(ngModel)]="newTask.dueDate" name="newTaskDueDate" 
+                         required aria-required="true">
+                </div>
+                <div class="form-group">
+                  <label for="newTaskDueTime">Due Time</label>
+                  <input type="time" id="newTaskDueTime" [(ngModel)]="newTask.dueTime" name="newTaskDueTime">
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="newTaskPriority">Priority</label>
+                <select id="newTaskPriority" [(ngModel)]="newTask.priority" name="newTaskPriority" required 
+                        aria-required="true">
+                  <option value="Low">Low</option>
+                  <option value="Medium" selected>Medium</option>
+                  <option value="High">High</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="newTaskCategory">Category</label>
+                <select id="newTaskCategory" [(ngModel)]="newTask.category" name="newTaskCategory">
+                  <option value="">No Category</option>
+                  <option *ngFor="let category of categories" [value]="category">{{ category }}</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="newTaskRecurring">Recurring</label>
+                <select id="newTaskRecurring" [(ngModel)]="newTask.recurring" name="newTaskRecurring">
+                  <option value="">None</option>
+                  <option value="daily">Daily</option>
+                  <option value="weekly">Weekly</option>
+                  <option value="monthly">Monthly</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="newTaskNotifyBefore">Notify Before (minutes)</label>
+                <input type="number" id="newTaskNotifyBefore" [(ngModel)]="newTask.notifyBefore" 
+                       name="newTaskNotifyBefore" placeholder="e.g., 15" min="0" step="5">
+              </div>
+              <button type="submit" [disabled]="isLoading">
+                Add <i class="fas fa-plus" aria-hidden="true"></i>
+                <span class="visually-hidden" *ngIf="isLoading">Adding...</span>
+              </button>
+            </form>
+          </div>
+
+          <div class="task-input" [@fadeInOut] *ngIf="showTaskInput && isEditing">
+            <form (ngSubmit)="saveEditedTask()" novalidate>
+              <div class="form-group">
+                <label for="editTaskText">Task Description</label>
+                <input type="text" id="editTaskText" [(ngModel)]="editingTask.text" name="editTaskText" 
+                       required aria-required="true">
+              </div>
+              <div class="datetime-group">
+                <div class="form-group">
+                  <label for="editTaskDueDate">Due Date</label>
+                  <input type="date" id="editTaskDueDate" [(ngModel)]="editingTask.dueDate" 
+                         name="editTaskDueDate" required aria-required="true">
+                </div>
+                <div class="form-group">
+                  <label for="editTaskDueTime">Due Time</label>
+                  <input type="time" id="editTaskDueTime" [(ngModel)]="editingTask.dueTime" 
+                         name="editTaskDueTime">
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="editTaskPriority">Priority</label>
+                <select id="editTaskPriority" [(ngModel)]="editingTask.priority" name="editTaskPriority" 
+                        required aria-required="true">
+                  <option value="Low">Low</option>
+                  <option value="Medium">Medium</option>
+                  <option value="High">High</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="editTaskCategory">Category</label>
+                <select id="editTaskCategory" [(ngModel)]="editingTask.category" name="editTaskCategory">
+                  <option value="">No Category</option>
+                  <option *ngFor="let category of categories" [value]="category">{{ category }}</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="editTaskRecurring">Recurring</label>
+                <select id="editTaskRecurring" [(ngModel)]="editingTask.recurring" name="editTaskRecurring">
+                  <option value="">None</option>
+                  <option value="daily">Daily</option>
+                  <option value="weekly">Weekly</option>
+                  <option value="monthly">Monthly</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="editTaskNotifyBefore">Notify Before (minutes)</label>
+                <input type="number" id="editTaskNotifyBefore" [(ngModel)]="editingTask.notifyBefore" 
+                       name="editTaskNotifyBefore" placeholder="e.g., 15" min="0" step="5">
+              </div>
+              <button type="submit" [disabled]="isLoading">
+                Save
+                <span class="visually-hidden" *ngIf="isLoading">Saving...</span>
+              </button>
+              <button type="button" (click)="cancelEdit()" [disabled]="isLoading">Cancel</button>
+            </form>
+          </div>
+
+          <div class="task-list">
+            <div class="task-header">
+              <h3>
+                {{ filter === 'date' && selectedDate ? (selectedDate | date:'mediumDate') + ' Tasks' : filter | titlecase }} 
+                ({{ filteredTasks.length }})
+              </h3>
+              <button (click)="clearCompleted()" *ngIf="hasCompletedTasks()" [disabled]="isLoading"
+                      aria-label="Clear completed tasks">
+                Clear Completed
+              </button>
+            </div>
+            <div class="tasks" [@fadeIn] *ngIf="filteredTasks.length > 0; else noTasks" role="list">
+              <div *ngFor="let task of filteredTasks" class="task-item" role="listitem"
+                   [ngClass]="{'priority-high': task.priority === 'High', 
+                              'priority-medium': task.priority === 'Medium', 
+                              'priority-low': task.priority === 'Low'}">
+                <input type="checkbox" [checked]="task.completed" (change)="toggleTask(task)" 
+                       [attr.aria-label]="'Toggle completion of ' + task.text">
+                <div class="task-details">
+                  <span [ngClass]="{'completed': task.completed}">{{ task.text }}</span>
+                  <div class="task-meta">
+                    <span *ngIf="task.dueDate">Due: {{ task.dueDate | date:'short' }}</span>
+                    <span *ngIf="task.category">Category: {{ task.category }}</span>
+                    <span>Priority: {{ task.priority }}</span>
+                    <span *ngIf="task.recurring" class="recurring-indicator">{{ task.recurring }}</span>
+                  </div>
+                </div>
+                <button class="edit-btn" (click)="editTask(task)" aria-label="Edit task">
+                  <i class="fas fa-edit"></i>
+                </button>
+                <button class="delete-btn" (click)="deleteTask(task)" aria-label="Delete task">
+                  <i class="fas fa-times"></i>
+                </button>
+              </div>
+            </div>
+            <ng-template #noTasks>
+              <p class="no-tasks" role="status">
+                No {{ filter === 'date' && selectedDate ? (selectedDate | date:'mediumDate') : filter | titlecase }} tasks yet!
+              </p>
+            </ng-template>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <button class="sticky-add-btn" (click)="showTaskInput = !showTaskInput; isEditing = false" 
+          [disabled]="isLoading" aria-label="Add new task" [attr.aria-expanded]="showTaskInput">
+    <i class="fas fa-plus"></i>
+  </button>
+
+  <div class="messages" role="alert" aria-live="polite">
+    <p *ngIf="errorMessage" class="error">{{ errorMessage }}</p>
+    <p *ngIf="successMessage" class="success">{{ successMessage }}</p>
+  </div>
+
+  <!-- Confirmation Modal -->
+  <div class="confirm-modal" *ngIf="showConfirmModal" [@fadeInOut] role="dialog" aria-labelledby="confirmModalTitle" aria-modal="true">
+    <div class="modal-content">
+      <h3 id="confirmModalTitle">Confirm Action</h3>
+      <p>{{ confirmMessage }}</p>
+      <div class="modal-actions">
+        <button class="confirm-btn" (click)="confirmAction()" aria-label="Confirm action">
+          Confirm
+        </button>
+        <button class="cancel-btn" (click)="cancelAction()" aria-label="Cancel action">
+          Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="level-up-overlay" *ngIf="showLevelUp" [@levelUp] role="dialog" aria-label="Level Up Notification">
+    <div class="level-up-message">
+      <h2>Level {{ userProfile.level }} Achieved!</h2>
+      <p>Congratulations on your progress!</p>
+    </div>
+  </div>
+</div>  
+
